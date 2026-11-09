@@ -34,6 +34,33 @@ npm run preview
 - WebGL fallback messaging that leaves audio controls accessible.
 - Utility and audio lifecycle tests, including file replacement and pending playback cancellation.
 
+## Separate visual output — Phase 1.1
+
+Click **Open Visual Output** in the controller's visualization controls. Allow popups for PULSE if the browser blocks it. The new tab contains only Pulse Reactor; audio, file access, playback, and analysis stay exclusively in the controller. Drag the output tab into a separate window to move it to another monitor. In the output, **double-click the canvas** or press **F** to toggle fullscreen; **Escape** exits fullscreen. Fullscreen is never requested automatically.
+
+The `#output=<controller-id>` route preserves the current pathname (including `/Pulse/`) and query parameters, so refreshes work on static GitHub Pages hosting. Even an invalid output link renders a safe idle output rather than mounting the audio controller.
+
+Each controller publishes to `pulse:visual-output:v1:<controller-id>`. The versioned protocol has `hello`, `features`, and `disconnect` messages with wall-clock timestamps. Controller messages include an instance identifier, start timestamp, and increasing sequence number. Features contain only normalized bass, sensitivity, playback state, and the `pulse-reactor` scene identifier. No audio samples, FFT arrays, files, track names, or playback commands cross the channel. Sensitivity is already applied by AudioEngine and is not applied twice in the output.
+
+Feature updates are capped at 40 Hz during playback, with 500 ms idle heartbeats. Outputs send a hello every second to recover after refresh. Receivers validate payloads, reject stale/future, duplicate, out-of-order, foreign-controller, and retired-instance messages, and interpolate bass using time-based smoothing. After three seconds without fresh features, or an explicit controller disconnect, bass fades to zero and a subtle disconnected indicator appears. Ambient scene motion continues. Animation phase is local to each renderer; this is feature synchronization, not frame-locked video output.
+
+Web Locks give one publisher exclusive ownership of a controller identity. Session storage retains that identity across controller reloads; a short lock-acquisition grace period handles navigation/React StrictMode cleanup. Duplicated tabs with copied session storage get separate identities and channels. Channels, locks, timers, and receiver animation callbacks are cleaned up on unmount. Output reloads never create an AudioEngine or AudioContext. A controller reload requires reselecting the local audio file, as in Phase 1.
+
+BroadcastChannel requires both tabs to use the same origin/browser storage partition. Use localhost or HTTPS. Browsers without BroadcastChannel show an unavailable message. Without Web Locks, each controller uses a unique temporary identity for isolation; reopening the output is then necessary after a controller reload. Blocked session storage also prevents retaining the output association across reloads.
+
+Analysis uses a 40 Hz controller timer independently of the controller canvas; hiding the controller does not deliberately stop analysis. Browsers/OS power policies can still throttle or suspend background timers/audio, which can reduce feature cadence or trigger safe idle. Keep the controller visible in a second window for live performance. Physical external-monitor movement, OS display scaling, long-running background behavior, and browser-specific fullscreen permissions require manual checks.
+
+Manual acceptance:
+
+1. Run `npm run dev`, load a bass-heavy local track, and open the visual output. Confirm there is sound only from the controller and no header/player/controls in the output.
+2. Play, pause, resume, seek, reset, and change sensitivity in the controller. Confirm the output follows bass changes and settles to ambient motion when paused/stopped.
+3. Press F or double-click the output canvas, exit with Escape, then resize/move it to an external monitor. Confirm the canvas fills the viewport.
+4. Reload the output; it should reconnect without audio. Reload the controller; the output should reconnect to an idle controller, then respond after a file is loaded again.
+5. Close the controller; the output should fade to idle and show the disconnected indicator within three seconds. Close/reopen output tabs repeatedly and confirm the controller still works.
+6. Open an independent or duplicated controller tab; it should control only its own outputs. Check the browser console for errors.
+
+Phase 1.1 verification: TypeScript, ESLint, all 54 unit tests, and the production build pass. Headless Chrome with software WebGL verified output opening/closing, shader bass synchronization using a synthetic local WAV, sensitivity, pause/resume/reset, fullscreen gestures, viewport resizing, output/controller refresh, duplicated-controller isolation, and disconnect/reconnect. The same acceptance checks passed against the built app served under `/Pulse/`, with no console errors. These checks do not establish hardware FPS, physical multi-monitor behavior, or cross-browser compatibility. The existing large-bundle build warning remains.
+
 ## Stack and structure
 
 React 19, TypeScript, Vite, Tailwind CSS 4, Three.js, React Three Fiber, Web Audio API, and Lucide icons. ESLint and Vitest provide static checks and tests. A targeted npm override upgrades minimatch 7–10 to patched 11.0.1+ for the development lint toolchain; retain it until upstream dependencies adopt the fix.
@@ -42,6 +69,7 @@ React 19, TypeScript, Vite, Tailwind CSS 4, Three.js, React Three Fiber, Web Aud
 src/
   audio/        AudioEngine, FFT utilities, and tests
   rendering/    Pulse Reactor and WebGL fallback
+  output/       Channel protocol, controller ownership, receiver, output view, tests
   components/   Bass energy meter
   hooks/        Audio ownership and document visibility
   types/        Audio state and signal contracts
@@ -78,4 +106,4 @@ The production output is `dist/`. Vite uses `base: './'` so emitted assets resol
 
 ## Planned future phases (not implemented)
 
-Recommended Phase 2: browser/device acceptance testing and performance profiling, clearer signal calibration, and optional output/fullscreen controls. Later approved phases may introduce additional scenes, advanced frequency/beat analysis, live audio inputs, and performance presets. Keep each phase independently reviewed before expanding scope.
+Recommended Phase 2: browser/device acceptance testing and performance profiling, clearer signal calibration, and measured rendering/bundle optimizations. Later approved phases may introduce additional scenes, advanced frequency/beat analysis, live audio inputs, and performance presets. Keep each phase independently reviewed before expanding scope.

@@ -5,11 +5,13 @@ import {
   AudioLines,
   FileAudio,
   Headphones,
+  MonitorUp,
   Pause,
   Play,
   RotateCcw,
   Upload,
 } from "lucide-react";
+import { useControllerOutput } from "./hooks/useControllerOutput";
 import { useAudio } from "./hooks/useAudio";
 import { PulseReactor } from "./rendering/PulseReactor";
 import { BassMeter } from "./components/BassMeter";
@@ -17,6 +19,7 @@ import { formatTime } from "./utils/time";
 
 export default function App() {
   const audio = useAudio();
+  const output = useControllerOutput(audio.engine);
   const input = useRef<HTMLInputElement>(null);
   const [sensitivity, setSensitivity] = useState(1);
   const canPlay = ["ready", "playing", "paused", "ended"].includes(
@@ -104,6 +107,21 @@ export default function App() {
             )}
           </div>
           <div className="control-deck">
+            <div className="output-actions">
+              <button
+                className="output-button"
+                disabled={!output.ready}
+                onClick={output.openOutput}
+                title="Open a canvas-only tab. Double-click or press F there for fullscreen."
+              >
+                <MonitorUp size={15} /> Open Visual Output
+              </button>
+              {output.error && (
+                <p className="output-error" role="alert">
+                  {output.error}
+                </p>
+              )}
+            </div>
             <div className="transport-main">
               <div className="track-icon">
                 <FileAudio size={22} strokeWidth={1.4} />

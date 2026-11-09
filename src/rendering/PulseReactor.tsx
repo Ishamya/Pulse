@@ -120,7 +120,7 @@ function Reactor({
   );
 }
 class SceneBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; outputOnly?: boolean },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -131,18 +131,25 @@ class SceneBoundary extends Component<
     return this.state.failed ? (
       <div className="scene-fallback" role="status">
         The visual renderer is unavailable. Try enabling hardware acceleration
-        or reloading. Audio controls remain available.
+        or reloading.{" "}
+        {this.props.outputOnly ? "" : "Audio controls remain available."}
       </div>
     ) : (
       this.props.children
     );
   }
 }
-export function PulseReactor({ signal }: { signal: AudioSignal }) {
+export function PulseReactor({
+  signal,
+  outputOnly = false,
+}: {
+  signal: AudioSignal;
+  outputOnly?: boolean;
+}) {
   const visible = usePageVisible();
   const reducedMotion = useReducedMotion();
   return (
-    <SceneBoundary>
+    <SceneBoundary outputOnly={outputOnly}>
       <Canvas
         camera={{ position: [0, 0.3, 7], fov: 43 }}
         dpr={[1, 1.75]}
@@ -154,7 +161,10 @@ export function PulseReactor({ signal }: { signal: AudioSignal }) {
         }}
         fallback={
           <div className="scene-fallback">
-            WebGL is unavailable. Audio playback still works.
+            WebGL is unavailable.{" "}
+            {outputOnly
+              ? "Try enabling hardware acceleration."
+              : "Audio playback still works."}
           </div>
         }
       >

@@ -649,3 +649,68 @@ footer > span:last-child {
     transition: none;
   }
 }
+
+/* Phase 1.1: controller action and independent, canvas-only output. */
+.output-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.output-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9bfde;
+  border: 1px solid #464054;
+  background: #211e2c;
+  border-radius: 5px;
+  padding: 9px 12px;
+  font-size: 11px;
+}
+.output-button:not(:disabled):hover {
+  background: #30283f;
+  border-color: #83709f;
+}
+.output-error {
+  color: #ffb4c0;
+  font-size: 11px;
+  margin: 0;
+}
+.visual-output {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    #18162e 0%,
+    #0d101c 35%,
+    #0b0d15 75%
+  );
+  touch-action: manipulation;
+}
+.visual-output canvas {
+  display: block;
+}
+.output-status {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 7px 11px;
+  border: 1px solid #50466355;
+  border-radius: 4px;
+  background: #101019a6;
+  color: #aaa0bd;
+  text-align: center;
+  font:
+    10px/1.5 "SFMono-Regular",
+    Consolas,
+    monospace;
+  pointer-events: none;
+}

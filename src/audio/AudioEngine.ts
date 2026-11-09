@@ -24,7 +24,7 @@ export class AudioEngine {
   private generation = 0;
   private playbackGeneration = 0;
   private wantsPlayback = false;
-  private frame = 0;
+  private analysisTimer?: ReturnType<typeof setInterval>;
   private lastFrame = 0;
   private lastPublish = 0;
 
@@ -190,8 +190,10 @@ export class AudioEngine {
     if (playing) void this.play();
   }
   startAnalysis() {
+    clearInterval(this.analysisTimer);
     this.lastFrame = performance.now();
-    const tick = (now: number) => {
+    const tick = () => {
+      const now = performance.now();
       const delta = Math.min((now - this.lastFrame) / 1000, 0.1);
       this.lastFrame = now;
       let target = 0;
@@ -214,18 +216,20 @@ export class AudioEngine {
         this.lastPublish = now;
         this.update({ position: this.getPosition() });
       }
-      this.frame = requestAnimationFrame(tick);
     };
-    this.frame = requestAnimationFrame(tick);
+    // Separate from rendering: an output on another monitor still needs features
+    // when the controller has no visible canvas. Browsers may throttle timers.
+    const timer = setInterval(tick, 25);
+    this.analysisTimer = timer;
     return () => {
-      cancelAnimationFrame(this.frame);
+      clearInterval(timer);
     };
   }
   dispose() {
     this.wantsPlayback = false;
     ++this.playbackGeneration;
     ++this.generation;
-    cancelAnimationFrame(this.frame);
+    clearInterval(this.analysisTimer);
     this.disconnectSource();
     this.analyser?.disconnect();
     void this.context?.close().catch(() => {});

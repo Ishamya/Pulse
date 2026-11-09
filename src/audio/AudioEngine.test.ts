@@ -28,7 +28,7 @@ class FakeContext {
       smoothingTimeConstant: 0,
       connect: vi.fn(),
       disconnect: vi.fn(),
-      getByteFrequencyData: vi.fn(),
+      getByteFrequencyData: vi.fn((data: Uint8Array) => data.fill(0)),
     };
   }
   createBufferSource() {
@@ -56,7 +56,6 @@ beforeEach(() => {
   sources.length = 0;
   contexts.length = 0;
   vi.stubGlobal("AudioContext", FakeContext);
-  vi.stubGlobal("cancelAnimationFrame", vi.fn());
   engine = new AudioEngine();
 });
 afterEach(() => {
@@ -64,6 +63,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("audio lifecycle", () => {
+  it("samples independently of animation frames and cleans up repeated analysis setup", async () => {
+    vi.useFakeTimers();
+    const analyserSpy = vi.spyOn(FakeContext.prototype, "createAnalyser");
+    try {
+      await engine.load(file());
+      analyserSpy.mock.results[0].value.getByteFrequencyData.mockImplementation(
+        (data: Uint8Array) => data.fill(255),
+      );
+      await engine.play();
+      const oldStop = engine.startAnalysis();
+      vi.advanceTimersByTime(250);
+      expect(engine.signal.bass).toBeGreaterThan(0.5);
+      const stop = engine.startAnalysis();
+      oldStop();
+      expect(vi.getTimerCount()).toBe(1);
+      engine.pause();
+      vi.advanceTimersByTime(100);
+      expect(engine.signal.bass).toBe(0);
+      stop();
+      expect(vi.getTimerCount()).toBe(0);
+      engine.startAnalysis();
+      engine.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      analyserSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
   it("loads, plays, pauses, resumes, resets and seeks within bounds", async () => {
     await engine.load(file());
     expect(engine.getSnapshot()).toMatchObject({
